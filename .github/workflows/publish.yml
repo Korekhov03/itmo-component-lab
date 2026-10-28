@@ -1,0 +1,26 @@
+name: Publish Docker image
+on: [push, workflow_dispatch]
+permissions:
+  contents: read
+  packages: write
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build --platform linux/amd64 -t ghcr.io/korekhov03/itmo-component-lab:507433 .
+      - name: Check container
+        run: |
+          data=$(mktemp -d)
+          test "$(docker run --rm --network none -v "$data:/data:ro" ghcr.io/korekhov03/itmo-component-lab:507433)" = "507433-0-0-0"
+          mkdir -p "$data/docs/old" "$data/empty"
+          printf abc > "$data/a file.txt"
+          printf 12345 > "$data/docs/old/b"
+          touch "$data/zero"
+          ln -s docs "$data/link"
+          test "$(docker run --rm --network none -v "$data:/data:ro" ghcr.io/korekhov03/itmo-component-lab:507433)" = "507433-3-3-8"
+      - name: Login
+        env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: printf "%s" "$TOKEN" | docker login ghcr.io -u Korekhov03 --password-stdin
+      - run: docker push ghcr.io/korekhov03/itmo-component-lab:507433
